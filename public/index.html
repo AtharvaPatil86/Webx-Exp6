@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Registration Page</title>
+  <style>
+    /* Basic styling for the form */
+    body { font-family: Arial, sans-serif; margin: 20px; }
+    form { max-width: 400px; }
+    input { display: block; margin-bottom: 10px; width: 100%; padding: 8px; }
+    #collegeSuggestions { border: 1px solid #ccc; max-height: 100px; overflow-y: auto; }
+    #collegeSuggestions div { padding: 5px; cursor: pointer; }
+    #collegeSuggestions div:hover { background-color: #f0f0f0; }
+    #message { margin-top: 10px; font-weight: bold; }
+  </style>
+  <link rel="stylesheet" href="style.css" />
+
+</head>
+<body>
+  <h2>Register</h2>
+  <form id="registrationForm">
+    <input type="text" id="name" placeholder="Name" required>
+    <input type="text" id="college" placeholder="College" autocomplete="off" required>
+    <div id="collegeSuggestions"></div>
+    <input type="text" id="username" placeholder="Username" required>
+    <input type="password" id="password" placeholder="Password" required>
+    <input type="password" id="confirmPassword" placeholder="Confirm Password" required>
+    <button type="submit">Register</button>
+  </form>
+  <div id="message"></div>
+
+  <script>
+    // Function to check if passwords match
+    function validatePasswords() {
+      const password = document.getElementById('password').value;
+      const confirmPassword = document.getElementById('confirmPassword').value;
+      return password === confirmPassword;
+    }
+
+    // Function to check username availability
+    function checkUsernameAvailability(username, callback) {
+      const xhr = new XMLHttpRequest();
+      xhr.open('GET', '/check-username?username=' + encodeURIComponent(username), true);
+      xhr.onreadystatechange = function() {
+        if (xhr.readyState === 4 && xhr.status === 200) {
+          callback(xhr.responseText === 'available');
+        }
+      };
+      xhr.send();
+    }
+
+    // Function to get college suggestions
+    function getCollegeSuggestions(query, callback) {
+      const xhr = new XMLHttpRequest();
+      xhr.open('GET', '/college-suggestions?query=' + encodeURIComponent(query), true);
+      xhr.onreadystatechange = function() {
+        if (xhr.readyState === 4 && xhr.status === 200) {
+          const suggestions = JSON.parse(xhr.responseText);
+          callback(suggestions);
+        }
+      };
+      xhr.send();
+    }
+
+    // Event listener for college input
+    document.getElementById('college').addEventListener('input', function() {
+      const query = this.value;
+      if (query.length > 0) {
+        getCollegeSuggestions(query, function(suggestions) {
+          const suggestionsDiv = document.getElementById('collegeSuggestions');
+          suggestionsDiv.innerHTML = '';
+          suggestions.forEach(function(college) {
+            const div = document.createElement('div');
+            div.textContent = college;
+            div.addEventListener('click', function() {
+              document.getElementById('college').value = college;
+              suggestionsDiv.innerHTML = '';
+            });
+            suggestionsDiv.appendChild(div);
+          });
+        });
+      } else {
+        document.getElementById('collegeSuggestions').innerHTML = '';
+      }
+    });
+
+    // Event listener for form submission
+    document.getElementById('registrationForm').addEventListener('submit', function(event) {
+      event.preventDefault();
+      const username = document.getElementById('username').value;
+      const passwordValid = validatePasswords();
+      if (!passwordValid) {
+        document.getElementById('message').textContent = 'Passwords do not match.';
+        return;
+      }
+      checkUsernameAvailability(username, function(isAvailable) {
+        if (!isAvailable) {
+          document.getElementById('message').textContent = 'Username is already taken.';
+        } else {
+          // Submit the form data
+          const xhr = new XMLHttpRequest();
+          xhr.open('POST', '/register', true);
+          xhr.setRequestHeader('Content-Type', 'application/json;charset=UTF-8');
+          const data = {
+            name: document.getElementById('name').value,
+            college: document.getElementById('college').value,
+            username: username,
+            password: document.getElementById('password').value
+          };
+          xhr.onreadystatechange = function() {
+            if (xhr.readyState === 4 && xhr.status === 200) {
+              document.getElementById('message').textContent = 'Successfully Registered';
+              document.getElementById('registrationForm').reset();
+              document.getElementById('collegeSuggestions').innerHTML = '';
+            }
+          };
+          xhr.send(JSON.stringify(data));
+        }
+      });
+    });
+  </script>
+</body>
+</html>
